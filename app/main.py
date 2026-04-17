@@ -8,7 +8,7 @@ from app.routers import analyze
 from app.middleware.rate_limiter import RateLimitMiddleware
 from app.middleware.session import SessionMiddleware
 
-# Configure logging
+# ---------------- LOGGING ---------------- #
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
@@ -16,23 +16,28 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# ---------------- LIFESPAN ---------------- #
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Trade Opportunities API starting up...")
+    logger.info("🚀 Trade Opportunities API starting...")
     yield
-    logger.info("Trade Opportunities API shutting down...")
+    logger.info("🛑 Trade Opportunities API shutting down...")
 
 
+# ---------------- APP ---------------- #
 app = FastAPI(
     title="Trade Opportunities API",
-    description="Analyzes market data and provides trade opportunity insights for specific sectors in India.",
+    description="Analyzes market data and provides trade opportunity insights for Indian sectors.",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
 )
 
-# CORS
+
+# ---------------- MIDDLEWARE ---------------- #
+
+# CORS (always first)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,14 +46,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Custom middleware (order matters — added last = executed first)
-app.add_middleware(RateLimitMiddleware)
+# Custom middleware
 app.add_middleware(SessionMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
-# Routers
+
+# ---------------- ROUTES ---------------- #
 app.include_router(analyze.router, prefix="/api/v1", tags=["Analysis"])
 
 
+# ---------------- HEALTH ---------------- #
 @app.get("/", tags=["Health"])
 async def root():
     return {
@@ -64,10 +71,13 @@ async def health():
     return {"status": "ok"}
 
 
+# ---------------- GLOBAL ERROR HANDLER ---------------- #
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error. Please try again later."},
+        content={
+            "detail": "Internal server error. Please try again later."
+        },
     )

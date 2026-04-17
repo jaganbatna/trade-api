@@ -1,15 +1,11 @@
 import os
 import logging
-from fastapi import HTTPException, Security, Depends
+from typing import Optional
+
+from fastapi import HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 
 logger = logging.getLogger(__name__)
-
-# --------------------------------------------------------------------------- #
-#  Auth strategy: API Key (simple, robust for assignment scope)
-#  Pass as:  Authorization: Bearer <API_KEY>
-#  OR:       X-API-Key: <API_KEY>
-# --------------------------------------------------------------------------- #
 
 API_KEY = os.getenv("TRADE_API_KEY", "trade-secret-key-2024")
 
@@ -18,16 +14,11 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 def verify_api_key(
-    bearer: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
-    header_key: str | None = Security(api_key_header),
+    bearer: Optional[HTTPAuthorizationCredentials] = Security(bearer_scheme),
+    header_key: Optional[str] = Security(api_key_header),
 ) -> str:
-    """
-    Accept the API key via:
-      - Authorization: Bearer <key>
-      - X-API-Key: <key>
-    Returns the validated key on success, raises 401 on failure.
-    """
     provided = None
+
     if bearer:
         provided = bearer.credentials
     elif header_key:
