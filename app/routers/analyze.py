@@ -31,61 +31,62 @@ CACHE_TTL = 1800  # 30 minutes
         401: {"model": ErrorResponse, "description": "Missing API key"},
         403: {"model": ErrorResponse, "description": "Invalid API key"},
         429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-        500: {"model": ErrorResponse, "description": "Internal / upstream API error"},
+        500: {"model": ErrorResponse, "description": "Internal error"},
         503: {"model": ErrorResponse, "description": "AI service unavailable"},
     },
 )
 async def analyze_sector(
     request: Request,
-    sector: str = Path(
-        ...,
-        description="Sector name (e.g. 'pharmaceuticals', 'technology', 'agriculture')",
-        min_length=2,
-        max_length=60,
-    ),
+    sector: str = Path(..., min_length=2, max_length=60),
     _: str = Depends(verify_api_key),
 ) -> AnalysisResponse:
+
     session_id = getattr(request.state, "session_id", "unknown")
     logger.info(f"[{session_id[:8]}] Analyze request for sector: '{sector}'")
 
-    # --- Input validation ---
+    # ---------------- VALIDATION ----------------
     try:
         clean_sector = validate_sector(sector)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # --- Cache check ---
+    # ---------------- CACHE ----------------
     cache_key = f"report:{clean_sector}"
     cached = cache_get(cache_key)
     if cached:
         logger.info(f"Serving cached report for '{clean_sector}'")
-        cached["session_id"] = session_id  # update session in cached response
+        cached["session_id"] = session_id
         return AnalysisResponse(**cached)
 
-    # --- Data collection ---
+    # ---------------- SEARCH ----------------
     try:
-        logger.info(f"Searching market data for '{clean_sector}'...")
+        logger.info(f"Searching data for '{clean_sector}'...")
         search_data = await search_market_data(clean_sector)
     except Exception as e:
-        logger.error(f"Search failed: {e}")
-        search_data = {}  # Graceful degradation — proceed with LLM-only knowledge
+        logger.error(f"Search failed: {str(e)}")
+        search_data = {}
 
     sources_count = sum(len(v) for v in search_data.values())
 
-    # --- AI analysis ---
+    # ---------------- AI ----------------
     try:
-        logger.info(f"Calling Gemini for '{clean_sector}' analysis...")
+        logger.info(f"Calling AI for '{clean_sector}'...")
         report_md = await generate_analysis(clean_sector, search_data)
-    except ValueError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except Exception as e:
-        logger.error(f"Gemini analysis error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=503,
-            detail="AI analysis service failed. Please retry in a moment.",
-        )
 
-    # --- Build response ---
+        if not report_md or len(report_md.strip()) < 50:
+            raise ValueError("AI returned empty or weak response")
+
+    except ValueError as e:
+        # Known issue (like missing API key)
+        logger.error(f"AI VALUE ERROR: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"AI ERROR: {str(e)}")
+
+    except Exception as e:
+        # REAL DEBUG INFO
+        logger.error(f"AI CRASH: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=503, detail=f"AI ERROR: {str(e)}")
+
+    # ---------------- RESPONSE ----------------
     payload = {
         "sector": clean_sector,
         "session_id": session_id,
@@ -94,7 +95,10 @@ async def analyze_sector(
         "sources_used": sources_count,
     }
 
-    # Cache it
-    cache_set(cache_key, {**payload, "generated_at": payload["generated_at"].isoformat()}, ttl=CACHE_TTL)
+    cache_set(
+        cache_key,
+        {**payload, "generated_at": payload["generated_at"].isoformat()},
+        ttl=CACHE_TTL,
+    )
 
     return AnalysisResponse(**payload)
