@@ -1,14 +1,11 @@
 import os
 import httpx
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 async def generate_analysis(sector: str, search_data: dict) -> str:
-    api_key = os.getenv("GROQ_API_KEY")
-
-    if not api_key:
-        raise ValueError("GROQ_API_KEY is not set")
-
-    # 🔥 CRITICAL FIX
-    api_key = api_key.strip()
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY is not set")
 
     prompt = f"""
 Generate a detailed trade opportunities report for the Indian {sector} sector.
@@ -24,15 +21,15 @@ Use this data if available:
 {search_data}
 """
 
-    url = "https://api.groq.com/openai/v1/chat/completions"
+    url = "https://api.openai.com/v1/chat/completions"
 
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {OPENAI_API_KEY.strip()}",
         "Content-Type": "application/json",
     }
 
     payload = {
-        "model": "mixtral-8x7b-32768",
+        "model": "gpt-4o-mini",   # ✅ Stable + cheap
         "messages": [
             {"role": "user", "content": prompt}
         ],
@@ -43,7 +40,7 @@ Use this data if available:
         response = await client.post(url, json=payload, headers=headers)
 
         if response.status_code != 200:
-            raise Exception(f"Groq API error: {response.text}")
+            raise Exception(f"OpenAI API error: {response.text}")
 
         data = response.json()
         return data["choices"][0]["message"]["content"]
