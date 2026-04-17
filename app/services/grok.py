@@ -1,30 +1,33 @@
 import os
 import httpx
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
 async def generate_analysis(sector: str, search_data: dict) -> str:
-    if not GROQ_API_KEY:
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
         raise ValueError("GROQ_API_KEY is not set")
 
+    # 🔥 CRITICAL FIX
+    api_key = api_key.strip()
+
     prompt = f"""
-    Generate a detailed trade opportunities report for the Indian {sector} sector.
+Generate a detailed trade opportunities report for the Indian {sector} sector.
 
-    Include:
-    - Market Overview
-    - Growth Trends
-    - Export/Import Opportunities
-    - Government Schemes
-    - Investment Outlook
+Include:
+- Market Overview
+- Growth Trends
+- Export/Import Opportunities
+- Government Schemes
+- Investment Outlook
 
-    Use this data if available:
-    {search_data}
-    """
+Use this data if available:
+{search_data}
+"""
 
     url = "https://api.groq.com/openai/v1/chat/completions"
 
     headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
 
