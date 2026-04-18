@@ -27,7 +27,7 @@ Use this data if available:
 
     try:
         
-        model = genai.GenerativeModel("gemini-1.0-pro")
+        model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
 
         response = model.generate_content(prompt)
 
