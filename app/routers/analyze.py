@@ -6,7 +6,7 @@ from app.models.schemas import AnalysisResponse, ErrorResponse
 from app.middleware.auth import verify_api_key
 from app.services.validator import validate_sector
 from app.services.search import search_market_data
-from app.services.gemini import generate_analysis
+from app.services.grok import generate_analysis
 from app.services.cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
