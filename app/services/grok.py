@@ -30,8 +30,8 @@ Use this data if available:
     }
 
     payload = {
-        # ✅ WORKING MODELS (don’t guess randomly again)
-        "model": "llama3-70b-8192",
+        # ✅ FINAL FIXED MODEL
+        "model": "llama3-8b-8192",
         "messages": [
             {"role": "user", "content": prompt}
         ],
